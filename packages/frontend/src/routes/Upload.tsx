@@ -8,6 +8,7 @@ import type { ParsedObservationRow } from '../types';
 
 type UploadProps = {
   onComplete?: () => Promise<void> | void;
+  onStatus?: (status: { type: 'info' | 'error'; message: string }) => void;
 };
 
 type ExtractionMethod = 'pdf-text' | 'ocr';
@@ -54,7 +55,7 @@ async function renderPdfToOcrText(file: File): Promise<string> {
   return pageTexts.join('\n');
 }
 
-export default function Upload({ onComplete }: UploadProps) {
+export default function Upload({ onComplete, onStatus }: UploadProps) {
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewRows, setPreviewRows] = useState<ParsedObservationRow[]>([]);
@@ -69,6 +70,7 @@ export default function Upload({ onComplete }: UploadProps) {
 
     setProcessing(true);
     setError(null);
+    onStatus?.({ type: 'info', message: `Processing ${fileList.length} file${fileList.length === 1 ? '' : 's'}…` });
 
     try {
       for (const file of Array.from(fileList)) {
@@ -127,10 +129,23 @@ export default function Upload({ onComplete }: UploadProps) {
         if (onComplete) {
           await onComplete();
         }
+
+        const description =
+          extraction === 'ocr'
+            ? 'Optical Character Recognition'
+            : 'the embedded PDF text layout';
+        onStatus?.({
+          type: 'info',
+          message: `Parsed ${parsedRows.length} rows from ${file.name} using ${description}.`
+        });
       }
     } catch (err) {
       console.error(err);
       setError(err instanceof Error ? err.message : 'Unable to parse the selected file.');
+      onStatus?.({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Unable to parse the selected file.'
+      });
     } finally {
       setProcessing(false);
       event.target.value = '';

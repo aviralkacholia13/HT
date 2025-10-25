@@ -7,6 +7,14 @@ import { LabTable } from './components/LabTable';
 import { TrendChart } from './components/TrendChart';
 import { InsightGrid } from './components/InsightGrid';
 import Upload from './routes/Upload';
+import { demoDocuments } from './data/demo-data';
+
+type StatusKind = 'info' | 'error';
+
+interface StatusMessage {
+  type: StatusKind;
+  message: string;
+}
 
 function extractNumericValue(raw: string): number | null {
   const match = raw.replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
@@ -102,6 +110,8 @@ function observationToRow(observation: ObservationRecord, sourceFile: string, in
 export default function App() {
   const [documents, setDocuments] = useState<LabDocument[]>([]);
   const [selectedTest, setSelectedTest] = useState<string | null>(null);
+  const [status, setStatus] = useState<StatusMessage | null>(null);
+  const [loadingDemo, setLoadingDemo] = useState(false);
 
   const insights = insightsData as InsightCard[];
 
@@ -189,13 +199,64 @@ export default function App() {
     });
 
     doc.save('visit-summary.pdf');
+    setStatus({ type: 'info', message: 'Downloaded a visit summary PDF for the most recent results.' });
   };
 
   const handleClear = async () => {
     await Promise.all([db.documents.clear(), db.observations.clear()]);
     setDocuments([]);
     setSelectedTest(null);
+    setStatus({ type: 'info', message: 'Cleared all locally stored lab reports.' });
   };
+
+  const handleLoadDemoData = useCallback(async () => {
+    setLoadingDemo(true);
+    setStatus({ type: 'info', message: 'Loading example lab reports…' });
+    try {
+      await db.transaction('rw', db.documents, db.observations, async () => {
+        await db.documents.clear();
+        await db.observations.clear();
+
+        for (const demo of demoDocuments) {
+          const documentId = await db.documents.add({
+            fileName: demo.fileName,
+            fileType: demo.fileType,
+            uploadedAt: demo.uploadedAt,
+            pageCount: demo.pageCount
+          });
+
+          const timestamp = new Date().toISOString();
+          await db.observations.bulkAdd(
+            demo.observations.map((observation) => ({
+              documentId,
+              rawName: observation.rawName,
+              value: observation.value,
+              unit: observation.unit,
+              ref: observation.ref,
+              date: observation.date,
+              createdAt: timestamp
+            }))
+          );
+        }
+      });
+
+      await loadDocuments();
+      setSelectedTest(null);
+      setStatus({
+        type: 'info',
+        message: `Loaded ${demoDocuments.length} example report${demoDocuments.length === 1 ? '' : 's'} with trending data.`
+      });
+    } catch (error) {
+      console.error(error);
+      setStatus({ type: 'error', message: 'Unable to load the bundled example data. Please try again.' });
+    } finally {
+      setLoadingDemo(false);
+    }
+  }, [loadDocuments]);
+
+  const handleStatusUpdate = useCallback((next: StatusMessage) => {
+    setStatus(next);
+  }, []);
 
   return (
     <div className="container">
@@ -208,6 +269,17 @@ export default function App() {
               Upload PDF or image lab reports, extract the structured results entirely in your browser, review trends, and keep a
               private offline history.
             </p>
+            {status && (
+              <p
+                style={{
+                  marginTop: '0.75rem',
+                  color: status.type === 'error' ? '#b91c1c' : '#2563eb',
+                  fontWeight: 500
+                }}
+              >
+                {status.message}
+              </p>
+            )}
           </div>
           <div className="grid" style={{ gap: '0.5rem' }}>
             <button className="primary" onClick={handleGenerateSummary} disabled={!allRows.length}>
@@ -216,6 +288,9 @@ export default function App() {
             <button className="secondary" onClick={handleClear} disabled={!allRows.length}>
               Clear stored data
             </button>
+            <button className="secondary" onClick={handleLoadDemoData} disabled={loadingDemo}>
+              {loadingDemo ? 'Loading demo data…' : 'Load example data'}
+            </button>
           </div>
         </div>
       </header>
@@ -223,7 +298,7 @@ export default function App() {
       <section className="card">
         <h2>Upload lab reports</h2>
         <p style={{ color: '#475569' }}>PDF and common image formats are supported. Everything happens locally.</p>
-        <Upload onComplete={loadDocuments} />
+        <Upload onComplete={loadDocuments} onStatus={handleStatusUpdate} />
       </section>
 
       <section className="card">
