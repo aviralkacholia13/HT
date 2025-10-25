@@ -1,2 +1,0 @@
-This placeholder file exists so the application can attempt to load /tesseract/eng.traineddata in offline environments.
-Replace this file with the full traineddata from the official Tesseract distribution for production use.
