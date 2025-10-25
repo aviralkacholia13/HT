@@ -14,13 +14,12 @@ async function ensureWorker(): Promise<WorkerInstance> {
   if (!workerPromise) {
     workerPromise = (async () => {
       try {
-        const worker = await createWorker(undefined, undefined, {
-          langPath: '/tesseract',
-          gzip: false
+        const worker = await createWorker({
+          langPath: '/tesseract'
         });
         await worker.load();
-        await (worker as any).loadLanguage('eng');
-        await (worker as any).initialize('eng');
+        await worker.loadLanguage('eng');
+        await worker.initialize('eng');
         workerInstance = worker;
         updateBootStatus('ocrReady', { ok: true, error: null });
         return worker;
@@ -40,7 +39,7 @@ async function ensureWorker(): Promise<WorkerInstance> {
 export async function ocrToText(input: Blob): Promise<string> {
   try {
     const worker = await ensureWorker();
-    const { data } = await (worker as any).recognize(input);
+    const { data } = await worker.recognize(input);
     return data?.text ?? '';
   } catch (error) {
     console.error('OCR failed', error);
