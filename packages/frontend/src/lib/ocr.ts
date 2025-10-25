@@ -1,39 +1,29 @@
-import { createWorker, RecognizeResult } from 'tesseract.js';
+import { createWorker } from 'tesseract.js';
 
-let workerPromise: ReturnType<typeof createWorker> | null = null;
+type TWorker = Awaited<ReturnType<typeof createWorker>>;
+let worker: TWorker | null = null;
 
-const workerUrl = new URL('tesseract.js/dist/worker.min.js', import.meta.url).toString();
-const coreUrl = new URL('tesseract.js-core/tesseract-core.wasm.js', import.meta.url).toString();
-const langDataUrl = new URL('tesseract.js/dist/lang-data/eng.traineddata.gz', import.meta.url).toString();
-
-async function getWorker() {
-  if (!workerPromise) {
-    workerPromise = createWorker({
-      workerPath: workerUrl,
-      corePath: coreUrl
-    });
-    const worker = await workerPromise;
+async function getWorker(lang = 'eng'): Promise<TWorker> {
+  if (!worker) {
+    worker = await createWorker();
     await worker.load();
-    await worker.loadLanguage('eng', langDataUrl);
-    await worker.initialize('eng');
-    return worker;
+    await (worker as any).loadLanguage(lang);
+    await (worker as any).initialize(lang);
   }
-
-  return workerPromise;
+  return worker;
 }
 
-export async function extractImageText(file: File): Promise<string> {
-  const worker = await getWorker();
-  const dataUrl = await fileToDataUrl(file);
-  const { data }: RecognizeResult = await worker.recognize(dataUrl);
-  return data.text;
+export async function ocrToText(input: ImageBitmapSource | Blob, lang = 'eng'): Promise<string> {
+  const w = await getWorker(lang);
+  // use 'any' to bypass mis-typed methods if needed
+  const { data } = await (w as any).recognize(input);
+  return data?.text ?? '';
 }
 
-async function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
+export async function disposeOcr() {
+  if (worker) { await worker.terminate(); worker = null; }
 }
+
+// IMPORTANT:
+// - Do NOT import or reference the DOM 'Worker' type anywhere.
+// - Do NOT alias anything as just 'Worker'.
