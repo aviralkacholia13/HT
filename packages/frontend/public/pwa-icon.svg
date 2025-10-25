@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Health Trends icon">
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#grad)" />
+  <path d="M112 352l64-96 64 80 72-144 56 88 32-48" fill="none" stroke="#ffffff" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" />
+  <circle cx="128" cy="360" r="20" fill="#22c55e" />
+  <circle cx="208" cy="336" r="20" fill="#22c55e" />
+  <circle cx="288" cy="216" r="20" fill="#f97316" />
+  <circle cx="368" cy="304" r="20" fill="#ef4444" />
+</svg>
