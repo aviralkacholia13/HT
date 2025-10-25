@@ -8,7 +8,8 @@ import {
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  type ChartData
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { LabResultRow } from '../types';
@@ -36,7 +37,7 @@ export function TrendChart({ rows, selectedTest }: TrendChartProps) {
   const rangeLow = filtered.map((row) => row.referenceRange?.low ?? null);
   const rangeHigh = filtered.map((row) => row.referenceRange?.high ?? null);
 
-  const dataset = useMemo(() => {
+  const dataset = useMemo<ChartData<'line', (number | null)[], string> | null>(() => {
     if (!filtered.length) {
       return null;
     }
@@ -62,7 +63,7 @@ export function TrendChart({ rows, selectedTest }: TrendChartProps) {
           spanGaps: true
         },
         {
-          label: selectedTest,
+          label: selectedTest ?? 'Selected Test',
           data: values,
           borderColor: 'rgba(59,130,246,1)',
           backgroundColor: 'rgba(59,130,246,0.25)',

@@ -3,7 +3,7 @@ import { jsPDF } from 'jspdf';
 import { db } from './db';
 import { LabDocument, InsightCard } from './types';
 import { extractPdfText } from './lib/pdf';
-import { extractImageText } from './lib/ocr';
+import { ocrToText } from './lib/ocr';
 import { parseLabTable } from './lib/parser';
 import insightsData from './data/insights.json';
 import { LabTable } from './components/LabTable';
@@ -78,7 +78,7 @@ export default function App() {
         if (isPdf(file)) {
           text = await extractPdfText(file);
         } else if (isImage(file)) {
-          text = await extractImageText(file);
+          text = await ocrToText(file);
         } else {
           continue;
         }
