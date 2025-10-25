@@ -1,4 +1,5 @@
 import { createWorker } from 'tesseract.js';
+import { formatError, updateBootStatus } from '../boot-status';
 
 type WorkerInstance = Awaited<ReturnType<typeof createWorker>>;
 
@@ -12,12 +13,24 @@ async function ensureWorker(): Promise<WorkerInstance> {
 
   if (!workerPromise) {
     workerPromise = (async () => {
-      const worker = await createWorker();
-      await worker.load();
-      await (worker as any).loadLanguage('eng');
-      await (worker as any).initialize('eng');
-      workerInstance = worker;
-      return worker;
+      try {
+        const worker = await createWorker(undefined, undefined, {
+          langPath: '/tesseract',
+          gzip: false
+        });
+        await worker.load();
+        await (worker as any).loadLanguage('eng');
+        await (worker as any).initialize('eng');
+        workerInstance = worker;
+        updateBootStatus('ocrReady', { ok: true, error: null });
+        return worker;
+      } catch (error) {
+        console.error('Failed to initialize OCR worker', error);
+        updateBootStatus('ocrReady', { ok: false, error: formatError(error) });
+        workerPromise = null;
+        workerInstance = null;
+        throw error;
+      }
     })();
   }
 
@@ -25,9 +38,18 @@ async function ensureWorker(): Promise<WorkerInstance> {
 }
 
 export async function ocrToText(input: Blob): Promise<string> {
-  const worker = await ensureWorker();
-  const { data } = await (worker as any).recognize(input);
-  return data?.text ?? '';
+  try {
+    const worker = await ensureWorker();
+    const { data } = await (worker as any).recognize(input);
+    return data?.text ?? '';
+  } catch (error) {
+    console.error('OCR failed', error);
+    updateBootStatus('ocrReady', { ok: false, error: formatError(error) });
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(formatError(error));
+  }
 }
 
 export async function disposeOcr() {

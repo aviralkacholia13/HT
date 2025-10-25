@@ -1,4 +1,5 @@
 import Dexie, { Table } from 'dexie';
+import { formatError, updateBootStatus } from './boot-status';
 import { DocumentRecord, ObservationRecord } from './types';
 
 export class LabDatabase extends Dexie {
@@ -14,4 +15,24 @@ export class LabDatabase extends Dexie {
   }
 }
 
-export const db = new LabDatabase();
+let dbInstance: LabDatabase;
+
+try {
+  dbInstance = new LabDatabase();
+} catch (error) {
+  console.error('Failed to create Dexie instance', error);
+  updateBootStatus('dexieOpen', { ok: false, error: formatError(error) });
+  throw error;
+}
+
+dbInstance
+  .open()
+  .then(() => {
+    updateBootStatus('dexieOpen', { ok: true, error: null });
+  })
+  .catch((error) => {
+    console.error('Failed to open Dexie database', error);
+    updateBootStatus('dexieOpen', { ok: false, error: formatError(error) });
+  });
+
+export const db = dbInstance;

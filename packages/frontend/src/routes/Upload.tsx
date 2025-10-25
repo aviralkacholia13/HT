@@ -1,8 +1,7 @@
 import { ChangeEvent, useState } from 'react';
-import { getDocument } from 'pdfjs-dist';
 import { db } from '../db';
 import { ocrToText } from '../lib/ocr';
-import { extractTextItems } from '../lib/pdf';
+import { extractTextItems, getPdfDocument } from '../lib/pdf';
 import { rowsFromOcrText, rowsFromTextItems } from '../lib/parse';
 import type { ParsedObservationRow } from '../types';
 
@@ -24,8 +23,7 @@ function isImage(file: File): boolean {
 }
 
 async function renderPdfToOcrText(file: File): Promise<string> {
-  const data = await file.arrayBuffer();
-  const pdf = await getDocument({ data }).promise;
+  const pdf = await getPdfDocument(file);
   const pageTexts: string[] = [];
 
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
