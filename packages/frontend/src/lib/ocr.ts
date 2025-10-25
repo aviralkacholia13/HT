@@ -1,22 +1,16 @@
 import { createWorker, RecognizeResult } from 'tesseract.js';
 
-let workerPromise: ReturnType<typeof createWorker> | null = null;
-
-const workerUrl = new URL('tesseract.js/dist/worker.min.js', import.meta.url).toString();
-const coreUrl = new URL('tesseract.js-core/tesseract-core.wasm.js', import.meta.url).toString();
-const langDataUrl = new URL('tesseract.js/dist/lang-data/eng.traineddata.gz', import.meta.url).toString();
+let workerPromise: Promise<Awaited<ReturnType<typeof createWorker>>> | null = null;
 
 async function getWorker() {
   if (!workerPromise) {
-    workerPromise = createWorker({
-      workerPath: workerUrl,
-      corePath: coreUrl
-    });
-    const worker = await workerPromise;
-    await worker.load();
-    await worker.loadLanguage('eng', langDataUrl);
-    await worker.initialize('eng');
-    return worker;
+    workerPromise = (async () => {
+      const worker = await createWorker();
+      await worker.load();
+      await worker.loadLanguage('eng');
+      await worker.initialize('eng');
+      return worker;
+    })();
   }
 
   return workerPromise;

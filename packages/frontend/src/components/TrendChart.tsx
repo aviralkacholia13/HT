@@ -8,7 +8,8 @@ import {
   Title,
   Tooltip,
   Legend,
-  Filler
+  Filler,
+  type ChartDataset
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { LabResultRow } from '../types';
@@ -41,37 +42,39 @@ export function TrendChart({ rows, selectedTest }: TrendChartProps) {
       return null;
     }
 
+    const datasets: ChartDataset<'line', (number | null)[]>[] = [
+      {
+        label: 'Reference Low',
+        data: rangeLow,
+        borderColor: 'rgba(34,197,94,0)',
+        backgroundColor: 'rgba(74, 222, 128, 0.15)',
+        fill: { target: '-1' },
+        pointRadius: 0,
+        spanGaps: true
+      },
+      {
+        label: 'Reference High',
+        data: rangeHigh,
+        borderColor: 'rgba(34,197,94,0)',
+        backgroundColor: 'rgba(74, 222, 128, 0.15)',
+        pointRadius: 0,
+        spanGaps: true
+      },
+      {
+        label: selectedTest,
+        data: values,
+        borderColor: 'rgba(59,130,246,1)',
+        backgroundColor: 'rgba(59,130,246,0.25)',
+        tension: 0.3,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        spanGaps: true
+      }
+    ];
+
     return {
       labels,
-      datasets: [
-        {
-          label: 'Reference Low',
-          data: rangeLow,
-          borderColor: 'rgba(34,197,94,0)',
-          backgroundColor: 'rgba(74, 222, 128, 0.15)',
-          fill: '+1',
-          pointRadius: 0,
-          spanGaps: true
-        },
-        {
-          label: 'Reference High',
-          data: rangeHigh,
-          borderColor: 'rgba(34,197,94,0)',
-          backgroundColor: 'rgba(74, 222, 128, 0.15)',
-          pointRadius: 0,
-          spanGaps: true
-        },
-        {
-          label: selectedTest,
-          data: values,
-          borderColor: 'rgba(59,130,246,1)',
-          backgroundColor: 'rgba(59,130,246,0.25)',
-          tension: 0.3,
-          pointRadius: 5,
-          pointHoverRadius: 7,
-          spanGaps: true
-        }
-      ]
+      datasets
     };
   }, [filtered, labels, rangeLow, rangeHigh, selectedTest, values]);
 
