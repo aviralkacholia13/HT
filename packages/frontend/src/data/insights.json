@@ -1,0 +1,23 @@
+[
+  {
+    "id": "hydration",
+    "title": "Hydration and Kidney Health",
+    "summary": "Your BUN and creatinine have been stable. Staying hydrated helps maintain this trend.",
+    "detail": "Aim for consistent water intake throughout the day. Consider tracking daily hydration alongside lab visits to see how it affects kidney markers.",
+    "relatedTests": ["BUN", "Creatinine"]
+  },
+  {
+    "id": "lipids",
+    "title": "Cholesterol pattern",
+    "summary": "LDL values nudged above the upper range in recent visits.",
+    "detail": "Small dietary adjustments such as increasing soluble fiber or omega-3 rich foods could help. Recheck values in 3 months to confirm the trend.",
+    "relatedTests": ["LDL", "Total Cholesterol"]
+  },
+  {
+    "id": "vitamin-d",
+    "title": "Vitamin D sufficiency",
+    "summary": "Vitamin D values sit nicely within the expected band.",
+    "detail": "Continue current supplementation or sunlight exposure habits. Track seasonal changes to anticipate dips in late winter months.",
+    "relatedTests": ["Vitamin D"]
+  }
+]
