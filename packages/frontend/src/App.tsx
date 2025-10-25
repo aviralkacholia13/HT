@@ -131,6 +131,7 @@ export default function App() {
 
   return (
     <div className="container">
+      <div data-test="boot-ok">App loaded</div>
       <header className="card" style={{ marginTop: '2rem' }}>
         <div className="flex-between">
           <div>
