@@ -1,39 +1,147 @@
-import { ChangeEvent, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { jsPDF } from 'jspdf';
 import { db } from './db';
-import { LabDocument, InsightCard } from './types';
-import { extractPdfText } from './lib/pdf';
-import { ocrToText } from './lib/ocr';
-import { parseLabTable } from './lib/parser';
+import { LabDocument, InsightCard, ObservationRecord, ReferenceRange } from './types';
 import insightsData from './data/insights.json';
 import { LabTable } from './components/LabTable';
 import { TrendChart } from './components/TrendChart';
 import { InsightGrid } from './components/InsightGrid';
+import Upload from './routes/Upload';
 
-const supportedImageTypes = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
-
-function isPdf(file: File) {
-  return file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+function extractNumericValue(raw: string): number | null {
+  const match = raw.replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+  if (!match) {
+    return null;
+  }
+  const parsed = parseFloat(match[0]);
+  return Number.isNaN(parsed) ? null : parsed;
 }
 
-function isImage(file: File) {
-  return supportedImageTypes.some((type) => file.type === type) || /\.(png|jpg|jpeg|webp|gif)$/i.test(file.name);
+function normaliseDateValue(input: string | null): string | null {
+  if (!input) {
+    return null;
+  }
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  const match = trimmed.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})$/);
+  if (match) {
+    let [, monthRaw, dayRaw, yearRaw] = match;
+    const month = monthRaw.padStart(2, '0');
+    const day = dayRaw.padStart(2, '0');
+    let year = yearRaw;
+    if (yearRaw.length === 2) {
+      const yearNum = parseInt(yearRaw, 10);
+      year = yearNum > 80 ? `19${yearRaw}` : `20${yearRaw}`;
+    } else if (yearRaw.length === 3) {
+      year = `2${yearRaw}`;
+    }
+    return `${year.padStart(4, '0')}-${month}-${day}`;
+  }
+
+  return trimmed;
+}
+
+function buildReferenceRange(ref: string): ReferenceRange | null {
+  const trimmed = ref.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const sanitized = trimmed.replace(/,/g, '');
+  const rangeMatch = sanitized.match(/(-?\d+(?:\.\d+)?)\s*[-–]\s*(-?\d+(?:\.\d+)?)/);
+  if (rangeMatch) {
+    const low = parseFloat(rangeMatch[1]);
+    const high = parseFloat(rangeMatch[2]);
+    return {
+      low: Number.isNaN(low) ? null : low,
+      high: Number.isNaN(high) ? null : high,
+      raw: trimmed
+    };
+  }
+
+  const singleMatch = sanitized.match(/-?\d+(?:\.\d+)?/);
+  if (singleMatch) {
+    const numeric = parseFloat(singleMatch[0]);
+    if (!Number.isNaN(numeric)) {
+      return {
+        low: null,
+        high: numeric,
+        raw: trimmed
+      };
+    }
+  }
+
+  return {
+    low: null,
+    high: null,
+    raw: trimmed
+  };
+}
+
+function observationToRow(observation: ObservationRecord, sourceFile: string, index: number) {
+  const valueRaw = observation.value;
+  const parsedDate = normaliseDateValue(observation.date ?? null);
+  return {
+    id: `${observation.documentId}-${index}-${observation.rawName}`,
+    testName: observation.rawName,
+    value: extractNumericValue(valueRaw),
+    unit: observation.unit,
+    valueRaw,
+    referenceRange: observation.ref ? buildReferenceRange(observation.ref) : null,
+    date: parsedDate,
+    sourceFile
+  } satisfies LabDocument['rows'][number];
 }
 
 export default function App() {
   const [documents, setDocuments] = useState<LabDocument[]>([]);
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selectedTest, setSelectedTest] = useState<string | null>(null);
 
   const insights = insightsData as InsightCard[];
 
-  useEffect(() => {
-    (async () => {
-      const stored = await db.labDocuments.orderBy('uploadedAt').toArray();
-      setDocuments(stored);
-    })();
+  const loadDocuments = useCallback(async () => {
+    const [storedDocuments, storedObservations] = await Promise.all([
+      db.documents.orderBy('uploadedAt').toArray(),
+      db.observations.toArray()
+    ]);
+
+    const observationMap = new Map<number, ObservationRecord[]>();
+    storedObservations.forEach((observation) => {
+      if (!observation.documentId) {
+        return;
+      }
+      if (!observationMap.has(observation.documentId)) {
+        observationMap.set(observation.documentId, []);
+      }
+      observationMap.get(observation.documentId)!.push(observation);
+    });
+
+    const mapped: LabDocument[] = storedDocuments.map((doc) => {
+      const rows = (doc.id ? observationMap.get(doc.id) ?? [] : [])
+        .sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''))
+        .map((observation, index) => observationToRow(observation, doc.fileName, index));
+
+      return {
+        id: doc.id,
+        fileName: doc.fileName,
+        uploadedAt: doc.uploadedAt,
+        rows,
+        plainText: ''
+      };
+    });
+
+    setDocuments(mapped);
   }, []);
+
+  useEffect(() => {
+    loadDocuments();
+  }, [loadDocuments]);
 
   const allRows = useMemo(
     () =>
@@ -63,46 +171,6 @@ export default function App() {
     }
   }, [selectedTest, testNames]);
 
-  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files?.length) {
-      return;
-    }
-
-    setProcessing(true);
-    setError(null);
-
-    try {
-      for (const file of Array.from(files)) {
-        let text = '';
-        if (isPdf(file)) {
-          text = await extractPdfText(file);
-        } else if (isImage(file)) {
-          text = await ocrToText(file);
-        } else {
-          continue;
-        }
-
-        const rows = parseLabTable(text, file.name);
-        const documentRecord: LabDocument = {
-          fileName: file.name,
-          uploadedAt: new Date().toISOString(),
-          rows,
-          plainText: text
-        };
-        await db.labDocuments.add(documentRecord);
-      }
-      const stored = await db.labDocuments.orderBy('uploadedAt').toArray();
-      setDocuments(stored);
-    } catch (err) {
-      console.error(err);
-      setError('We were unable to process one of the files. Please verify the format and try again.');
-    } finally {
-      setProcessing(false);
-      event.target.value = '';
-    }
-  };
-
   const handleGenerateSummary = () => {
     const doc = new jsPDF();
     doc.setFontSize(16);
@@ -124,7 +192,7 @@ export default function App() {
   };
 
   const handleClear = async () => {
-    await db.labDocuments.clear();
+    await Promise.all([db.documents.clear(), db.observations.clear()]);
     setDocuments([]);
     setSelectedTest(null);
   };
@@ -155,13 +223,7 @@ export default function App() {
       <section className="card">
         <h2>Upload lab reports</h2>
         <p style={{ color: '#475569' }}>PDF and common image formats are supported. Everything happens locally.</p>
-        <input type="file" multiple accept="application/pdf,image/*" onChange={handleFileChange} />
-        {processing && <p style={{ marginTop: '1rem' }}>Processing… This may take a moment for large files.</p>}
-        {error && (
-          <p style={{ marginTop: '1rem', color: '#b91c1c', fontWeight: 600 }}>
-            {error}
-          </p>
-        )}
+        <Upload onComplete={loadDocuments} />
       </section>
 
       <section className="card">
