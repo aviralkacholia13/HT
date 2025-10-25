@@ -21,7 +21,7 @@ interface TrendChartProps {
 }
 
 export function TrendChart({ rows, selectedTest }: TrendChartProps) {
-  const filtered = useMemo(() => {
+  const filtered = useMemo<LabResultRow[]>(() => {
     if (!selectedTest) {
       return [];
     }
@@ -31,10 +31,12 @@ export function TrendChart({ rows, selectedTest }: TrendChartProps) {
       .sort((a, b) => (a.date ?? '').localeCompare(b.date ?? ''));
   }, [rows, selectedTest]);
 
-  const labels = filtered.map((row) => row.date ?? row.id);
+  const labels = filtered.map((row) => String(row.date ?? row.id ?? ''));
   const values = filtered.map((row) => row.value);
   const rangeLow = filtered.map((row) => row.referenceRange?.low ?? null);
   const rangeHigh = filtered.map((row) => row.referenceRange?.high ?? null);
+  const safeSelectedTest = selectedTest ?? '';
+  const safeUnit = filtered[0]?.unit ?? '';
 
   const dataset = useMemo(() => {
     if (!filtered.length) {
@@ -62,7 +64,7 @@ export function TrendChart({ rows, selectedTest }: TrendChartProps) {
           spanGaps: true
         },
         {
-          label: selectedTest,
+          label: safeSelectedTest || `Value (${safeUnit})`,
           data: values,
           borderColor: 'rgba(59,130,246,1)',
           backgroundColor: 'rgba(59,130,246,0.25)',
@@ -73,11 +75,13 @@ export function TrendChart({ rows, selectedTest }: TrendChartProps) {
         }
       ]
     };
-  }, [filtered, labels, rangeLow, rangeHigh, selectedTest, values]);
+  }, [filtered, labels, rangeHigh, rangeLow, safeSelectedTest, safeUnit, values]);
 
   if (!dataset) {
     return <p>No data available for the selected test yet.</p>;
   }
+
+  const chartTitle = safeSelectedTest ? `${safeSelectedTest} trend` : 'Value trend';
 
   return (
     <Line
@@ -88,14 +92,14 @@ export function TrendChart({ rows, selectedTest }: TrendChartProps) {
           legend: { position: 'top' },
           title: {
             display: true,
-            text: `${selectedTest} trend`
+            text: chartTitle
           }
         },
         scales: {
           y: {
             title: {
               display: true,
-              text: filtered[0]?.unit ?? ''
+              text: `Value (${safeUnit})`
             }
           }
         }
