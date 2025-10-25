@@ -6,7 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepare-ocr": "node scripts/install-ocr-model.mjs",
+    "predev": "npm run prepare-ocr",
+    "prebuild": "npm run prepare-ocr",
+    "prepreview": "npm run prepare-ocr"
   },
   "dependencies": {
     "chart.js": "^4.4.6",
@@ -16,7 +20,8 @@
     "react": "^18.3.1",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^18.3.1",
-    "tesseract.js": "^5.1.0"
+    "tesseract.js": "^5.1.0",
+    "@tesseract.js-data/eng": "^5.0.0"
   },
   "devDependencies": {
     "@types/react": "^18.3.7",

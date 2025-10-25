@@ -8,3 +8,6 @@ npm-debug.log*
 **/manifest.webmanifest
 **/sw.js
 **/workbox-*.js
+
+# Local OCR assets
+public/tesseract/eng.traineddata.gz
