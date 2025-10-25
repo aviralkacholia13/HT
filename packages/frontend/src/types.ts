@@ -30,3 +30,30 @@ export interface InsightCard {
   detail: string;
   relatedTests: string[];
 }
+
+export interface ParsedObservationRow {
+  rawName: string;
+  value: string;
+  unit: string;
+  ref: string;
+  date: string | null;
+}
+
+export interface DocumentRecord {
+  id?: number;
+  fileName: string;
+  fileType: string;
+  uploadedAt: string;
+  pageCount: number;
+}
+
+export interface ObservationRecord {
+  id?: number;
+  documentId: number;
+  rawName: string;
+  value: string;
+  unit: string;
+  ref: string;
+  date: string | null;
+  createdAt: string;
+}

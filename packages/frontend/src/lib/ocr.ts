@@ -1,27 +1,41 @@
 import { createWorker } from 'tesseract.js';
 
-type TWorker = Awaited<ReturnType<typeof createWorker>>;
-let worker: TWorker | null = null;
+type WorkerInstance = Awaited<ReturnType<typeof createWorker>>;
 
-async function getWorker(lang = 'eng'): Promise<TWorker> {
-  if (!worker) {
-    worker = await createWorker();
-    await worker.load();
-    await (worker as any).loadLanguage(lang);
-    await (worker as any).initialize(lang);
+let workerPromise: Promise<WorkerInstance> | null = null;
+let workerInstance: WorkerInstance | null = null;
+
+async function ensureWorker(): Promise<WorkerInstance> {
+  if (workerInstance) {
+    return workerInstance;
   }
-  return worker;
+
+  if (!workerPromise) {
+    workerPromise = (async () => {
+      const worker = await createWorker();
+      await worker.load();
+      await (worker as any).loadLanguage('eng');
+      await (worker as any).initialize('eng');
+      workerInstance = worker;
+      return worker;
+    })();
+  }
+
+  return workerPromise;
 }
 
-export async function ocrToText(input: ImageBitmapSource | Blob, lang = 'eng'): Promise<string> {
-  const w = await getWorker(lang);
-  // use 'any' to bypass mis-typed methods if needed
-  const { data } = await (w as any).recognize(input);
+export async function ocrToText(input: Blob): Promise<string> {
+  const worker = await ensureWorker();
+  const { data } = await (worker as any).recognize(input);
   return data?.text ?? '';
 }
 
 export async function disposeOcr() {
-  if (worker) { await worker.terminate(); worker = null; }
+  if (workerInstance) {
+    await workerInstance.terminate();
+    workerInstance = null;
+    workerPromise = null;
+  }
 }
 
 // IMPORTANT:

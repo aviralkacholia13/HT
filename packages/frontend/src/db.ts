@@ -1,13 +1,15 @@
 import Dexie, { Table } from 'dexie';
-import { LabDocument } from './types';
+import { DocumentRecord, ObservationRecord } from './types';
 
 export class LabDatabase extends Dexie {
-  labDocuments!: Table<LabDocument, number>;
+  documents!: Table<DocumentRecord, number>;
+  observations!: Table<ObservationRecord, number>;
 
   constructor() {
     super('ht-lab-database');
     this.version(1).stores({
-      labDocuments: '++id, fileName, uploadedAt'
+      documents: '++id, fileName, uploadedAt',
+      observations: '++id, documentId, rawName'
     });
   }
 }
