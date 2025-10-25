@@ -1,0 +1,15 @@
+{
+  "name": "ht-monorepo",
+  "private": true,
+  "workspaces": [
+    "packages/frontend"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace ht-frontend",
+    "dev": "npm run dev --workspace ht-frontend",
+    "preview": "npm run preview --workspace ht-frontend"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
